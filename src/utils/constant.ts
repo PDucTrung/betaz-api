@@ -50,3 +50,14 @@ export const CRONJOB_ENABLE = {
 export const CONFIG_TYPE_NAME = {
     CHECK_BALANCE: "CronJobCheckBalance",
 };
+
+export enum SOCKET_STATUS  {
+    CONNECTED = "connected",
+    READY = "ready",
+    ERROR = "error",
+}
+export let global_vars = {
+    socketStatus: "error",
+    socketStatusLocal: "error",
+    caller: process.env.DEFAULT_CALLER_ADDRESS ? process.env.DEFAULT_CALLER_ADDRESS : '',
+};
