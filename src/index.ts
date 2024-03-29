@@ -3,9 +3,12 @@ dotenv.config();
 import { ApplicationConfig, BetazApiApplication } from './application';
 import * as mongoDB from "mongodb";
 import { DbDataSource } from "./datasources";
-import {ApiPromise, WsProvider} from "@polkadot/api";
+import { ApiPromise, WsProvider } from "@polkadot/api";
 import jsonrpc from "@polkadot/types/interfaces/jsonrpc";
-import { global_vars, SOCKET_STATUS} from "./utils/constant";
+import { global_vars, SOCKET_STATUS } from "./utils/constant";
+import { CRONJOB_ENABLE } from "./utils/constant";
+import { createBindingFromClass } from '@loopback/core';
+import { CronJobAzEventsCollector } from "./crons/azEventsCollector";
 
 export * from './application';
 
@@ -28,6 +31,11 @@ export async function main(options: ApplicationConfig = {}) {
   const app = new BetazApiApplication(options);
 
   // JOB
+  if (CRONJOB_ENABLE.AZ_EVENTS_COLLECTOR) {
+    const cronJobAzEventsCollector = createBindingFromClass(CronJobAzEventsCollector);
+    app.add(cronJobAzEventsCollector);
+    app.configure(cronJobAzEventsCollector.key);
+  }
 
   // CONNECT DB
   connectToDatabase().then(() => {
@@ -71,7 +79,7 @@ export async function main(options: ApplicationConfig = {}) {
       global_vars.socketStatus = SOCKET_STATUS.READY;
     });
     globalApi.on("error", (err) => {
-      console.log('error', err );
+      console.log('error', err);
       global_vars.socketStatus = SOCKET_STATUS.ERROR;
     });
   } catch (e) {

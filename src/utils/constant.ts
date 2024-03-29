@@ -40,15 +40,15 @@ export const MESSAGE = {
 }
 
 export const CRONJOB_TIME = {
-    CHECK_BALANCE: process.env.CRONJOB_TIME_CHECK_BALANCE ?? EACH_15_SECONDS,
+    AZ_EVENTS_COLLECTOR: process.env.CRONJOB_TIME_AZ_EVENTS_COLLECTOR ?? EACH_3_HOUR,
 };
 
 export const CRONJOB_ENABLE = {
-    CHECK_BALANCE: (process.env.CRONJOB_ENABLE_CHECK_BALANCE === "true"),
+    AZ_EVENTS_COLLECTOR: (process.env.IS_ENABLE_JOB_AZ_EVENTS_COLLECTOR == "true"),
 };
 
 export const CONFIG_TYPE_NAME = {
-    CHECK_BALANCE: "CronJobCheckBalance",
+    AZ_EVENTS_COLLECTOR: "CronJobAzEventsCollector",
 };
 
 export enum SOCKET_STATUS  {
@@ -60,4 +60,5 @@ export let global_vars = {
     socketStatus: "error",
     socketStatusLocal: "error",
     caller: process.env.DEFAULT_CALLER_ADDRESS ? process.env.DEFAULT_CALLER_ADDRESS : '',
+    isScanning: true,
 };

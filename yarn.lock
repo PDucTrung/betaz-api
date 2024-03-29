@@ -906,6 +906,17 @@
     debug "^4.3.4"
     tslib "^2.6.2"
 
+"@loopback/cron@^0.12.0":
+  version "0.12.0"
+  resolved "https://registry.yarnpkg.com/@loopback/cron/-/cron-0.12.0.tgz#4cd42f99204f9f1c6c56a6642fde104f00feeb5c"
+  integrity sha512-vGivU1j3B6xMUQu+jYcy08ceIQ4pj1wH/190P7CKKRJiDdAdVB4kbYDx6w4Zc9TkT8ynmMWeE6tGI1hiXRacjQ==
+  dependencies:
+    "@types/cron" "^2.0.1"
+    "@types/debug" "^4.1.12"
+    cron "^2.4.4"
+    debug "^4.3.4"
+    tslib "^2.6.2"
+
 "@loopback/eslint-config@^15.0.0":
   version "15.0.0"
   resolved "https://registry.yarnpkg.com/@loopback/eslint-config/-/eslint-config-15.0.0.tgz#e3613f257738cde9361b9885a1b02a582c58a7ba"
@@ -2011,6 +2022,13 @@
   dependencies:
     "@types/node" "*"
 
+"@types/cron@^2.0.1":
+  version "2.4.0"
+  resolved "https://registry.yarnpkg.com/@types/cron/-/cron-2.4.0.tgz#884d7866187d26291df206c09805d06b147986e4"
+  integrity sha512-5bBaAkqvSFBX8JMi/xCofNzG5E594TNsApMz68dLd/sQYz/HGQqgcxGHTRjOvD4G3Y+YF1Oo3S7QdCvKt1KAJQ==
+  dependencies:
+    cron "*"
+
 "@types/debug@^4.1.12":
   version "4.1.12"
   resolved "https://registry.yarnpkg.com/@types/debug/-/debug-4.1.12.tgz#a155f21690871953410df4b6b6f53187f0500917"
@@ -2075,6 +2093,11 @@
   version "4.17.0"
   resolved "https://registry.yarnpkg.com/@types/lodash/-/lodash-4.17.0.tgz#d774355e41f372d5350a4d0714abb48194a489c3"
   integrity sha512-t7dhREVv6dbNj0q17X12j7yDG4bD/DHYX7o5/DbDxobP0HnGPgpRz2Ej77aL7TZT3DSw13fqUTj8J4mMnqa7WA==
+
+"@types/luxon@~3.3.0":
+  version "3.3.8"
+  resolved "https://registry.yarnpkg.com/@types/luxon/-/luxon-3.3.8.tgz#84dbf2d020a9209a272058725e168f21d331a67e"
+  integrity sha512-jYvz8UMLDgy3a5SkGJne8H7VA7zPV2Lwohjx0V8V31+SqAjNmurWMkk9cQhfvlcnXWudBpK9xPM1n4rljOcHYQ==
 
 "@types/methods@^1.1.4":
   version "1.1.4"
@@ -2895,6 +2918,22 @@ cors@^2.8.5:
   dependencies:
     object-assign "^4"
     vary "^1"
+
+cron@*:
+  version "3.1.6"
+  resolved "https://registry.yarnpkg.com/cron/-/cron-3.1.6.tgz#e7e1798a468e017c8d31459ecd7c2d088f97346c"
+  integrity sha512-cvFiQCeVzsA+QPM6fhjBtlKGij7tLLISnTSvFxVdnFGLdz+ZdXN37kNe0i2gefmdD17XuZA6n2uPVwzl4FxW/w==
+  dependencies:
+    "@types/luxon" "~3.3.0"
+    luxon "~3.4.0"
+
+cron@^2.4.4:
+  version "2.4.4"
+  resolved "https://registry.yarnpkg.com/cron/-/cron-2.4.4.tgz#988c1757b3f288d1dfcc360ee6d80087448916dc"
+  integrity sha512-MHlPImXJj3K7x7lyUHjtKEOl69CSlTOWxS89jiFgNkzXfvhVjhMz/nc7/EIfN9vgooZp8XTtXJ1FREdmbyXOiQ==
+  dependencies:
+    "@types/luxon" "~3.3.0"
+    luxon "~3.3.0"
 
 cross-spawn@^7.0.0, cross-spawn@^7.0.2, cross-spawn@^7.0.3:
   version "7.0.3"
@@ -4260,6 +4299,16 @@ lru-cache@^6.0.0:
   integrity sha512-Jo6dJ04CmSjuznwJSS3pUeWmd/H0ffTlkXXgwZi+eq1UCmqQwCh+eLsYOYCwY991i2Fah4h1BEMCx4qThGbsiA==
   dependencies:
     yallist "^4.0.0"
+
+luxon@~3.3.0:
+  version "3.3.0"
+  resolved "https://registry.yarnpkg.com/luxon/-/luxon-3.3.0.tgz#d73ab5b5d2b49a461c47cedbc7e73309b4805b48"
+  integrity sha512-An0UCfG/rSiqtAIiBPO0Y9/zAnHUZxAMiCpTd5h2smgsj7GGmcenvrvww2cqNA8/4A5ZrD1gJpHN2mIHZQF+Mg==
+
+luxon@~3.4.0:
+  version "3.4.4"
+  resolved "https://registry.yarnpkg.com/luxon/-/luxon-3.4.4.tgz#cf20dc27dc532ba41a169c43fdcc0063601577af"
+  integrity sha512-zobTr7akeGHnv7eBOXcRgMeCP6+uyYsczwmeRCauvpvaAltgNyTbLH/+VaEAPUeWBT+1GuNmz4wC/6jtQzbbVA==
 
 make-dir@^3.0.0, make-dir@^3.0.2:
   version "3.1.0"
