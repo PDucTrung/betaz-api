@@ -60,5 +60,5 @@ export let global_vars = {
     socketStatus: "error",
     socketStatusLocal: "error",
     caller: process.env.DEFAULT_CALLER_ADDRESS ? process.env.DEFAULT_CALLER_ADDRESS : '',
-    isScanning: true,
+    isScanning: false,
 };

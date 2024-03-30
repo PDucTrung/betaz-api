@@ -20,6 +20,8 @@ import { ApiPromise, WsProvider } from "@polkadot/api";
 import jsonrpc from "@polkadot/types/interfaces/jsonrpc";
 @cronJob()
 export class CronJobAzEventsCollector implements Provider<CronJob> {
+    private isJobStarted: boolean = false;
+
     constructor(
         @repository(ScannedBlocksSchemaRepository)
         public scannedBlocksSchemaRepository: ScannedBlocksSchemaRepository,
@@ -35,50 +37,56 @@ export class CronJobAzEventsCollector implements Provider<CronJob> {
             cronTime: CRONJOB_TIME.AZ_EVENTS_COLLECTOR,
             name: CONFIG_TYPE_NAME.AZ_EVENTS_COLLECTOR,
             onTick: async () => {
-                try {
-                    let getConfig: boolean = CRONJOB_ENABLE.AZ_EVENTS_COLLECTOR;
-                    if (getConfig) {
-                        const currentTime = convertToUTCTime(new Date());
-                        console.log(`${CONFIG_TYPE_NAME.AZ_EVENTS_COLLECTOR} - RUN JOB AZ_EVENTS_COLLECTOR NOW: ${currentTime}`);
+                if (!this.isJobStarted) {
+                    this.isJobStarted = true;
+                    try {
+                        let getConfig: boolean = CRONJOB_ENABLE.AZ_EVENTS_COLLECTOR;
+                        if (getConfig) {
+                            const currentTime = convertToUTCTime(new Date());
+                            console.log(`${CONFIG_TYPE_NAME.AZ_EVENTS_COLLECTOR} - RUN JOB AZ_EVENTS_COLLECTOR NOW: ${currentTime}`);
 
-                        try {
-                            const scannedBlocksRepo = this.scannedBlocksSchemaRepository;
-                            const winRepo = this.winEventSchemaRepository;
-                            const loseRepo = this.loseEventSchemaRepository;
+                            try {
+                                const scannedBlocksRepo = this.scannedBlocksSchemaRepository;
+                                const winRepo = this.winEventSchemaRepository;
+                                const loseRepo = this.loseEventSchemaRepository;
 
-                            const rpc = process.env.WSSPROVIDER;
-                            if (!rpc) {
-                                console.log(`RPC not found! ${rpc}`);
-                                return;
-                            }
-                            const provider = new WsProvider(rpc);
-                            const eventApi = new ApiPromise({
-                                provider,
-                                rpc: jsonrpc,
-                                types: {
-                                    ContractsPsp34Id: {
-                                        _enum: {
-                                            U8: "u8",
-                                            U16: "u16",
-                                            U32: "u32",
-                                            U64: "u64",
-                                            U128: "u128",
-                                            Bytes: "Vec<u8>",
+                                const rpc = process.env.ALEPHZERO_PROVIDER_URL;
+                                if (!rpc) {
+                                    console.log(`RPC not found! ${rpc}`);
+                                    return;
+                                }
+                                const provider = new WsProvider(rpc);
+                                const eventApi = new ApiPromise({
+                                    provider,
+                                    rpc: jsonrpc,
+                                    types: {
+                                        ContractsPsp34Id: {
+                                            _enum: {
+                                                U8: "u8",
+                                                U16: "u16",
+                                                U32: "u32",
+                                                U64: "u64",
+                                                U128: "u128",
+                                                Bytes: "Vec<u8>",
+                                            },
                                         },
                                     },
-                                },
-                            });
-                            eventApi.on("connected", () => {
-                                eventApi.isReady.then(async (api: any) => {
-                                    console.log(`Global RPC Connected: ${rpc}`);
+                                });
+                                eventApi.on("connected", () => {
+                                    eventApi.isReady.then(async (api: any) => {
+                                        console.log(`Global RPC Connected: ${rpc}`);
+                                    });
+                                });
+                                eventApi.on("ready", async () => {
+                                    console.log("Global RPC Ready");
+                                    global_vars.socketStatus = SOCKET_STATUS.READY;
 
                                     // TODO: Start scanBlocks
                                     console.log(`${CONFIG_TYPE_NAME.AZ_EVENTS_COLLECTOR} - Smartnet AZERO Ready`);
                                     global_vars.isScanning = false;
 
                                     const abi_betaz_core = new Abi(betaz_core_contract.CONTRACT_ABI);
-                                    console.log(`${CONFIG_TYPE_NAME.AZ_EVENTS_COLLECTOR} - Marketplace Contract ABI is ready`);
-
+                                    console.log(`${CONFIG_TYPE_NAME.AZ_EVENTS_COLLECTOR} - Betaz core Contract ABI is ready`);
 
                                     // @ts-ignore
                                     await eventApi.rpc.chain.subscribeNewHeads((header: any) => {
@@ -86,9 +94,9 @@ export class CronJobAzEventsCollector implements Provider<CronJob> {
                                             scanBlocks(
                                                 parseInt(header.number.toString()),
                                                 eventApi,
-                                                abi_betaz_core, 
-                                                winRepo, 
-                                                loseRepo, 
+                                                abi_betaz_core,
+                                                winRepo,
+                                                loseRepo,
                                                 scannedBlocksRepo
                                             );
                                         } catch (e) {
@@ -96,21 +104,17 @@ export class CronJobAzEventsCollector implements Provider<CronJob> {
                                         }
                                     });
                                 });
-                            });
-                            eventApi.on("ready", async () => {
-                                console.log("Global RPC Ready");
-                                global_vars.socketStatus = SOCKET_STATUS.READY;
-                            });
-                            eventApi.on("error", (err: any) => {
-                                console.log('error', err);
-                                global_vars.socketStatus = SOCKET_STATUS.ERROR;
-                            });
-                        } catch (e) {
-                            console.log(`API GLOBAL - ERROR: ${e.message}`);
+                                eventApi.on("error", (err: any) => {
+                                    console.log('error', err);
+                                    global_vars.socketStatus = SOCKET_STATUS.ERROR;
+                                });
+                            } catch (e) {
+                                console.log(`API GLOBAL - ERROR: ${e.message}`);
+                            }
                         }
+                    } catch (e) {
+                        console.log(`${CONFIG_TYPE_NAME.AZ_EVENTS_COLLECTOR} - ERROR: ${e.message}`);
                     }
-                } catch (e) {
-                    console.log(`${CONFIG_TYPE_NAME.AZ_EVENTS_COLLECTOR} - ERROR: ${e.message}`);
                 }
             },
             start: true,

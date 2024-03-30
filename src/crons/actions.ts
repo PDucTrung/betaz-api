@@ -20,14 +20,18 @@ let obj: object;
 export async function scanBlocks(blocknumber: number, api: ApiPromise, abi_betaz_core: Abi, winRepo: winEventSchemaRepository, loseRepo: loseEventSchemaRepository, scannedBlocksRepo: ScannedBlocksSchemaRepository) {
   if (global_vars.isScanning) {
     //This to make sure always process the latest block in case still scanning old blocks
-    console.log("Process latest block", blocknumber);
+    // console.log('Process latest block: ', blocknumber);
     const blockHash = await api.rpc.chain.getBlockHash(blocknumber);
+    // @ts-ignore
     const eventRecords = await api.query.system.events.at(blockHash);
-    processEventRecords(eventRecords, blocknumber, abi_betaz_core, winRepo, loseRepo);
+    console.log(`${CONFIG_TYPE_NAME.AZ_EVENTS_COLLECTOR} - Start processEventRecords at ${blocknumber} now: ${convertToUTCTime(new Date())}`);
+    await processEventRecords(
+      eventRecords, blocknumber, abi_betaz_core, winRepo, loseRepo
+    );
+    console.log(`${CONFIG_TYPE_NAME.AZ_EVENTS_COLLECTOR} - Stop processEventRecords at ${blocknumber} now: ${convertToUTCTime(new Date())}`);
     return;
   }
   global_vars.isScanning = true;
-
   const isDebug = false;
   if (!isDebug) {
     try {
@@ -61,7 +65,7 @@ export async function scanBlocks(blocknumber: number, api: ApiPromise, abi_betaz
         const eventRecords = await api.query.system.events.at(blockHash);
         console.log(`${CONFIG_TYPE_NAME.AZ_EVENTS_COLLECTOR} - Start processEventRecords at ${to_scan} now: ${convertToUTCTime(new Date())}`);
         await processEventRecords(
-          eventRecords, blocknumber, abi_betaz_core, winRepo, loseRepo
+          eventRecords, to_scan, abi_betaz_core, winRepo, loseRepo
         );
         console.log(`${CONFIG_TYPE_NAME.AZ_EVENTS_COLLECTOR} - Stop processEventRecords at ${to_scan} now: ${convertToUTCTime(new Date())}`);
         try {
@@ -97,7 +101,7 @@ export async function processEventRecords(eventRecords: any, to_scan: number, ab
       const contract_address = accId.toString();
       if (contract_address == betaz_core_contract.CONTRACT_ADDRESS) {
         try {
-          // console.log(`${CONFIG_TYPE_NAME.AZ_EVENTS_COLLECTOR} - Event from Marketplace Contract...`);
+          console.log(`${CONFIG_TYPE_NAME.AZ_EVENTS_COLLECTOR} - Event from Betaz core Contract...`);
           const decodedEvent = abi_betaz_core.decodeEvent(bytes);
           let event_name = decodedEvent.event.identifier;
           const eventValues = [];
@@ -110,9 +114,9 @@ export async function processEventRecords(eventRecords: any, to_scan: number, ab
             obj = {
               blockNumber: to_scan,
               player: eventValues[0],
-              isOver: parseFloat(eventValues[1]) === 1 ? true : false,
-              randomNumber: eventValues[2],
-              betNumber: eventValues[3],
+              isOver: parseFloat(eventValues[1]) === 1,
+              randomNumber: eventValues[2] ? parseFloat(eventValues[2]) / decimal : 0,
+              betNumber: eventValues[3] ? parseFloat(eventValues[3]) / decimal : 0,
               betAmount: eventValues[4] ? parseFloat(eventValues[4]) / decimal : 0,
               winAmount: eventValues[5] ? parseFloat(eventValues[5]) / decimal : 0,
               rewardAmount: eventValues[6] ? parseFloat(eventValues[6]) / decimal : 0,
@@ -124,14 +128,16 @@ export async function processEventRecords(eventRecords: any, to_scan: number, ab
               where: obj
             });
             if (!found) {
-              await winRepo.create(obj);
-              console.log("added WinEvent", obj);
+              await winRepo.create(obj).catch((e) => {
+                console.log(`${CONFIG_TYPE_NAME.AZ_EVENTS_COLLECTOR} - ERROR: ${e.message}`);
+              });;
+              console.log(`${CONFIG_TYPE_NAME.AZ_EVENTS_COLLECTOR} - added winEvent: `, obj);
             }
           } else if (event_name == "LoseEvent") {
             obj = {
               blockNumber: to_scan,
               player: eventValues[0],
-              isOver: parseFloat(eventValues[1]) === 1 ? true : false,
+              isOver: parseFloat(eventValues[1]) === 1,
               randomNumber: eventValues[2] ? parseFloat(eventValues[2]) / decimal : 0,
               betNumber: eventValues[3] ? parseFloat(eventValues[3]) / decimal : 0,
               betAmount: eventValues[4] ? parseFloat(eventValues[4]) / decimal : 0,
@@ -147,7 +153,7 @@ export async function processEventRecords(eventRecords: any, to_scan: number, ab
               await loseRepo.create(obj).catch((e) => {
                 console.log(`${CONFIG_TYPE_NAME.AZ_EVENTS_COLLECTOR} - ERROR: ${e.message}`);
               });
-              console.log(`${CONFIG_TYPE_NAME.AZ_EVENTS_COLLECTOR} - added NewListEvent: `, obj);
+              console.log(`${CONFIG_TYPE_NAME.AZ_EVENTS_COLLECTOR} - added loseEvent: `, obj);
             }
           }
           console.log(to_scan, contract_address, event_name, eventValues);
@@ -157,79 +163,5 @@ export async function processEventRecords(eventRecords: any, to_scan: number, ab
       }
     }
   }
-  eventRecords.forEach(async (record: any) => {
-    // Extract the phase, event and the event types
-    const {
-      phase,
-      event: { data, method, section },
-    } = record;
-    //console.log(data, method, section);
-    if (section == "contracts" && method == "ContractEmitted") {
-      //console.log(phase.toString() + ' : ' + section + '.' + method + ' ' + data.toString());
-      const [accId, bytes] = data.map((data: any, _: any) => data).slice(0, 2);
-      const contract_address = accId.toString();
-      // console.log(contract_address, betaz_core_contract.CONTRACT_ADDRESS);
-      try {
-        if (contract_address == betaz_core_contract.CONTRACT_ADDRESS) {
-          console.log("Event from A0BET Contract...");
-          //console.log(phase.toString() + ' : ' + section + '.' + method + ' ' + data.toString());
-          const decodedEvent = abi_betaz_core.decodeEvent(bytes);
-          let event_name = decodedEvent.event.identifier;
-          const eventValues = [];
-
-          for (let i = 0; i < decodedEvent.args.length; i++) {
-            const value = decodedEvent.args[i];
-            eventValues.push(value.toString());
-          }
-
-          if (event_name == "WinEvent") {
-            obj = {
-              blockNumber: to_scan,
-              player: eventValues[0],
-              isOver: parseFloat(eventValues[1]) === 1 ? true : false,
-              randomNumber: eventValues[2],
-              betNumber: eventValues[3],
-              betAmount: eventValues[4] ? parseFloat(eventValues[4]) / decimal : 0,
-              winAmount: eventValues[5] ? parseFloat(eventValues[5]) / decimal : 0,
-              rewardAmount: eventValues[6] ? parseFloat(eventValues[6]) / decimal : 0,
-              oracleRound: eventValues[7] ? parseFloat(eventValues[7]) / decimal : 0,
-            };
-            let found = await winRepo.findOne({
-              where: obj
-            });
-            if (!found) {
-              await winRepo.create(obj).catch((e) => {
-                console.log(`${CONFIG_TYPE_NAME.AZ_EVENTS_COLLECTOR} - ERROR: ${e.message}`);
-              });
-              console.log(`${CONFIG_TYPE_NAME.AZ_EVENTS_COLLECTOR} - added NewListEvent: `, obj);
-            }
-          } else if (event_name == "LoseEvent") {
-            obj = {
-              blockNumber: to_scan,
-              player: eventValues[0],
-              isOver: parseFloat(eventValues[1]) === 1 ? true : false,
-              randomNumber: eventValues[2] ? parseFloat(eventValues[2]) / decimal : 0,
-              betNumber: eventValues[3] ? parseFloat(eventValues[3]) / decimal : 0,
-              betAmount: eventValues[4] ? parseFloat(eventValues[4]) / decimal : 0,
-              rewardAmount: eventValues[5] ? parseFloat(eventValues[5]) / decimal : 0,
-              oracleRound: eventValues[6] ? parseFloat(eventValues[6]) / decimal : 0,
-            };
-            let found = await loseRepo.findOne({
-              where: obj
-            });
-            if (!found) {
-              await loseRepo.create(obj);
-              console.log("added LoseEvent", obj);
-            }
-          }
-
-          //console.log(to_scan,contract_address,event_name,eventValues);
-        }
-      } catch (e) {
-        //send_telegram_message("scanBlocks - " + e.message);
-        console.log(e);
-      }
-    }
-  });
 };
 

@@ -11,6 +11,7 @@ import {RestApplication} from '@loopback/rest';
 import {ServiceMixin} from '@loopback/service-proxy';
 import path from 'path';
 import {MySequence} from './sequence';
+import {CronComponent} from "@loopback/cron";
 
 export {ApplicationConfig};
 
@@ -31,6 +32,7 @@ export class BetazApiApplication extends BootMixin(
     //   path: '/explorer',
     // });
     // this.component(RestExplorerComponent);
+    this.component(CronComponent);
 
     this.projectRoot = __dirname;
     // Customize @loopback/boot Booter Conventions here
