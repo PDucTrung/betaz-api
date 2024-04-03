@@ -1,23 +1,30 @@
+import {Provider} from '@loopback/core';
+import {CronJob, cronJob} from '@loopback/cron';
+import {repository} from "@loopback/repository";
+import {ApiPromise, WsProvider} from "@polkadot/api";
+import {Abi} from "@polkadot/api-contract";
+import jsonrpc from "@polkadot/types/interfaces/jsonrpc";
+import betaz_core_contract from "../contracts/betaz_core_contract";
+import {
+    ScannedBlocksSchemaRepository,
+    loseEventSchemaRepository,
+    winEventSchemaRepository,
+    corePoolManagerEventSchemaRepository,
+    pandoraPoolManagerEventSchemaRepository,
+    platformFeeManagerEventSchemaRepository,
+    rewardPoolManagerEventSchemaRepository,
+    stakingPoolManagerEventSchemaRepository,
+    treasuryPoolManagerEventSchemaRepository,
+} from "../repositories";
 import {
     CONFIG_TYPE_NAME,
     CRONJOB_ENABLE,
     CRONJOB_TIME,
+    SOCKET_STATUS,
+    global_vars,
 } from "../utils/constant";
-import { Provider } from '@loopback/core';
-import { CronJob, cronJob } from '@loopback/cron';
-import { Abi } from "@polkadot/api-contract";
-import { global_vars, SOCKET_STATUS } from "../utils/constant";
-import { convertToUTCTime } from "../utils/tools";
-import betaz_core_contract from "../contracts/betaz_core_contract";
-import { scanBlocks } from "./actions";
-import { repository } from "@loopback/repository";
-import {
-    winEventSchemaRepository,
-    loseEventSchemaRepository,
-    ScannedBlocksSchemaRepository
-} from "../repositories";
-import { ApiPromise, WsProvider } from "@polkadot/api";
-import jsonrpc from "@polkadot/types/interfaces/jsonrpc";
+import {convertToUTCTime} from "../utils/tools";
+import {scanBlocks} from "./actions";
 @cronJob()
 export class CronJobAzEventsCollector implements Provider<CronJob> {
     private isJobStarted: boolean = false;
@@ -29,6 +36,18 @@ export class CronJobAzEventsCollector implements Provider<CronJob> {
         public winEventSchemaRepository: winEventSchemaRepository,
         @repository(loseEventSchemaRepository)
         public loseEventSchemaRepository: loseEventSchemaRepository,
+        @repository(corePoolManagerEventSchemaRepository)
+        public corePoolManagerEventSchemaRepository: corePoolManagerEventSchemaRepository,
+        @repository(stakingPoolManagerEventSchemaRepository)
+        public stakingPoolManagerEventSchemaRepository: stakingPoolManagerEventSchemaRepository,
+        @repository(pandoraPoolManagerEventSchemaRepository)
+        public pandoraPoolManagerEventSchemaRepository: pandoraPoolManagerEventSchemaRepository,
+        @repository(treasuryPoolManagerEventSchemaRepository)
+        public treasuryPoolManagerEventSchemaRepository: treasuryPoolManagerEventSchemaRepository,
+        @repository(rewardPoolManagerEventSchemaRepository)
+        public rewardPoolManagerEventSchemaRepository: rewardPoolManagerEventSchemaRepository,
+        @repository(platformFeeManagerEventSchemaRepository)
+        public platformFeeManagerEventSchemaRepository: platformFeeManagerEventSchemaRepository,
     ) {
     }
 
@@ -49,6 +68,12 @@ export class CronJobAzEventsCollector implements Provider<CronJob> {
                                 const scannedBlocksRepo = this.scannedBlocksSchemaRepository;
                                 const winRepo = this.winEventSchemaRepository;
                                 const loseRepo = this.loseEventSchemaRepository;
+                                const corePoolManagerRepo = this.corePoolManagerEventSchemaRepository;
+                                const stakingPoolManagerRepo = this.stakingPoolManagerEventSchemaRepository;
+                                const pandoraPoolManagerRepo = this.pandoraPoolManagerEventSchemaRepository;
+                                const treasuryPoolManagerRepo = this.treasuryPoolManagerEventSchemaRepository;
+                                const rewardPoolManagerRepo = this.rewardPoolManagerEventSchemaRepository;
+                                const platformFeeManagerRepo = this.platformFeeManagerEventSchemaRepository;
 
                                 const rpc = process.env.ALEPHZERO_PROVIDER_URL;
                                 if (!rpc) {
@@ -97,7 +122,8 @@ export class CronJobAzEventsCollector implements Provider<CronJob> {
                                                 abi_betaz_core,
                                                 winRepo,
                                                 loseRepo,
-                                                scannedBlocksRepo
+                                                scannedBlocksRepo,
+                                                corePoolManagerRepo, stakingPoolManagerRepo, pandoraPoolManagerRepo, treasuryPoolManagerRepo, rewardPoolManagerRepo, platformFeeManagerRepo
                                             );
                                         } catch (e) {
                                             console.log(`${CONFIG_TYPE_NAME.AZ_EVENTS_COLLECTOR} - ERROR: ${e.message}`);

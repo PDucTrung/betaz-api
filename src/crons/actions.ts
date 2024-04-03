@@ -1,23 +1,26 @@
+import {ApiPromise} from "@polkadot/api";
+import {Abi} from "@polkadot/api-contract";
 import * as dotenv from 'dotenv';
-dotenv.config();
-import { ApiPromise, WsProvider } from "@polkadot/api";
-import { Abi, ContractPromise } from "@polkadot/api-contract";
-import { global_vars, SOCKET_STATUS } from "../utils/constant";
-import {
-  winEventSchemaRepository,
-  loseEventSchemaRepository,
-  ScannedBlocksSchemaRepository
-} from "../repositories";
-import {
-  CONFIG_TYPE_NAME,
-} from "../utils/constant";
-import { convertToUTCTime } from "../utils/tools";
 import betaz_core_contract from "../contracts/betaz_core_contract";
+import {
+  ScannedBlocksSchemaRepository,
+  corePoolManagerEventSchemaRepository,
+  loseEventSchemaRepository,
+  pandoraPoolManagerEventSchemaRepository,
+  platformFeeManagerEventSchemaRepository,
+  rewardPoolManagerEventSchemaRepository,
+  stakingPoolManagerEventSchemaRepository,
+  treasuryPoolManagerEventSchemaRepository,
+  winEventSchemaRepository
+} from "../repositories";
+import {CONFIG_TYPE_NAME, global_vars} from "../utils/constant";
+import {convertToUTCTime} from "../utils/tools";
+dotenv.config();
 
 const decimal: number = 10 ** 12;
 let obj: object;
 
-export async function scanBlocks(blocknumber: number, api: ApiPromise, abi_betaz_core: Abi, winRepo: winEventSchemaRepository, loseRepo: loseEventSchemaRepository, scannedBlocksRepo: ScannedBlocksSchemaRepository) {
+export async function scanBlocks(blocknumber: number, api: ApiPromise, abi_betaz_core: Abi, winRepo: winEventSchemaRepository, loseRepo: loseEventSchemaRepository, scannedBlocksRepo: ScannedBlocksSchemaRepository, corePoolManagerRepo: corePoolManagerEventSchemaRepository, stakingPoolManagerRepo: stakingPoolManagerEventSchemaRepository, pandoraPoolManagerRepo: pandoraPoolManagerEventSchemaRepository, treasuryPoolManagerRepo: treasuryPoolManagerEventSchemaRepository, rewardPoolManagerRepo: rewardPoolManagerEventSchemaRepository, platformFeeManagerRepo: platformFeeManagerEventSchemaRepository) {
   if (global_vars.isScanning) {
     //This to make sure always process the latest block in case still scanning old blocks
     // console.log('Process latest block: ', blocknumber);
@@ -26,7 +29,7 @@ export async function scanBlocks(blocknumber: number, api: ApiPromise, abi_betaz
     const eventRecords = await api.query.system.events.at(blockHash);
     console.log(`${CONFIG_TYPE_NAME.AZ_EVENTS_COLLECTOR} - Start processEventRecords at ${blocknumber} now: ${convertToUTCTime(new Date())}`);
     await processEventRecords(
-      eventRecords, blocknumber, abi_betaz_core, winRepo, loseRepo
+      eventRecords, blocknumber, abi_betaz_core, winRepo, loseRepo, corePoolManagerRepo, stakingPoolManagerRepo, pandoraPoolManagerRepo, treasuryPoolManagerRepo, rewardPoolManagerRepo, platformFeeManagerRepo
     );
     console.log(`${CONFIG_TYPE_NAME.AZ_EVENTS_COLLECTOR} - Stop processEventRecords at ${blocknumber} now: ${convertToUTCTime(new Date())}`);
     return;
@@ -65,7 +68,7 @@ export async function scanBlocks(blocknumber: number, api: ApiPromise, abi_betaz
         const eventRecords = await api.query.system.events.at(blockHash);
         console.log(`${CONFIG_TYPE_NAME.AZ_EVENTS_COLLECTOR} - Start processEventRecords at ${to_scan} now: ${convertToUTCTime(new Date())}`);
         await processEventRecords(
-          eventRecords, to_scan, abi_betaz_core, winRepo, loseRepo
+          eventRecords, to_scan, abi_betaz_core, winRepo, loseRepo, corePoolManagerRepo, stakingPoolManagerRepo, pandoraPoolManagerRepo, treasuryPoolManagerRepo, rewardPoolManagerRepo, platformFeeManagerRepo
         );
         console.log(`${CONFIG_TYPE_NAME.AZ_EVENTS_COLLECTOR} - Stop processEventRecords at ${to_scan} now: ${convertToUTCTime(new Date())}`);
         try {
@@ -86,10 +89,10 @@ export async function scanBlocks(blocknumber: number, api: ApiPromise, abi_betaz
   global_vars.isScanning = false;
 };
 
-export async function processEventRecords(eventRecords: any, to_scan: number, abi_betaz_core: Abi, winRepo: winEventSchemaRepository, loseRepo: loseEventSchemaRepository) {
+export async function processEventRecords(eventRecords: any, to_scan: number, abi_betaz_core: Abi, winRepo: winEventSchemaRepository, loseRepo: loseEventSchemaRepository, corePoolManagerRepo: corePoolManagerEventSchemaRepository, stakingPoolManagerRepo: stakingPoolManagerEventSchemaRepository, pandoraPoolManagerRepo: pandoraPoolManagerEventSchemaRepository, treasuryPoolManagerRepo: treasuryPoolManagerEventSchemaRepository, rewardPoolManagerRepo: rewardPoolManagerEventSchemaRepository, platformFeeManager: platformFeeManagerEventSchemaRepository) {
   for (const record of eventRecords) {
     // Extract the phase, event and the event types
-    const { phase, event: { data, method, section } } = record;
+    const {phase, event: {data, method, section}} = record;
     if (section == "contracts" && method == "ContractEmitted") {
       // console.log({
       //   record: {
@@ -115,14 +118,12 @@ export async function processEventRecords(eventRecords: any, to_scan: number, ab
               blockNumber: to_scan,
               player: eventValues[0],
               isOver: parseFloat(eventValues[1]) === 1,
-              randomNumber: eventValues[2] ? parseFloat(eventValues[2]) / decimal : 0,
-              betNumber: eventValues[3] ? parseFloat(eventValues[3]) / decimal : 0,
+              randomNumber: eventValues[2],
+              betNumber: eventValues[3],
               betAmount: eventValues[4] ? parseFloat(eventValues[4]) / decimal : 0,
               winAmount: eventValues[5] ? parseFloat(eventValues[5]) / decimal : 0,
               rewardAmount: eventValues[6] ? parseFloat(eventValues[6]) / decimal : 0,
-              oracleRound: eventValues[7] ? parseFloat(eventValues[7]) / decimal : 0,
-              createdTime: new Date(),
-              updatedTime: new Date()
+              oracleRound: eventValues[7],
             };
             let found = await winRepo.findOne({
               where: obj
@@ -138,13 +139,11 @@ export async function processEventRecords(eventRecords: any, to_scan: number, ab
               blockNumber: to_scan,
               player: eventValues[0],
               isOver: parseFloat(eventValues[1]) === 1,
-              randomNumber: eventValues[2] ? parseFloat(eventValues[2]) / decimal : 0,
-              betNumber: eventValues[3] ? parseFloat(eventValues[3]) / decimal : 0,
+              randomNumber: eventValues[2],
+              betNumber: eventValues[3],
               betAmount: eventValues[4] ? parseFloat(eventValues[4]) / decimal : 0,
               rewardAmount: eventValues[5] ? parseFloat(eventValues[5]) / decimal : 0,
-              oracleRound: eventValues[6] ? parseFloat(eventValues[6]) / decimal : 0,
-              createdTime: new Date(),
-              updatedTime: new Date()
+              oracleRound: eventValues[6],
             };
             let found = await loseRepo.findOne({
               where: obj
@@ -154,6 +153,96 @@ export async function processEventRecords(eventRecords: any, to_scan: number, ab
                 console.log(`${CONFIG_TYPE_NAME.AZ_EVENTS_COLLECTOR} - ERROR: ${e.message}`);
               });
               console.log(`${CONFIG_TYPE_NAME.AZ_EVENTS_COLLECTOR} - added loseEvent: `, obj);
+            }
+          } else if (event_name == "UpdateCorePoolAmount") {
+            obj = {
+              blockNumber: to_scan,
+              contract_address: eventValues[0],
+              caller: eventValues[1],
+              from: eventValues[2],
+              to: eventValues[3],
+              amount: eventValues[4] ? parseFloat(eventValues[4]) / decimal : 0,
+              time: eventValues[5],
+            };
+            let found = await corePoolManagerRepo.findOne(obj);
+            if (!found) {
+              await corePoolManagerRepo.create(obj);
+              console.log("added CorePoolManager", obj);
+            }
+          } else if (event_name == "UpdateStakingPoolAmount") {
+            obj = {
+              blockNumber: to_scan,
+              contract_address: eventValues[0],
+              caller: eventValues[1],
+              from: eventValues[2],
+              to: eventValues[3],
+              amount: eventValues[4] ? parseFloat(eventValues[4]) / decimal : 0,
+              time: eventValues[5],
+            };
+            let found = await stakingPoolManagerRepo.findOne(obj);
+            if (!found) {
+              await stakingPoolManagerRepo.create(obj);
+              console.log("added StakingPoolManager", obj);
+            }
+          } else if (event_name == "UpdatePandoraPoolAmount") {
+            obj = {
+              blockNumber: to_scan,
+              contract_address: eventValues[0],
+              caller: eventValues[1],
+              from: eventValues[2],
+              to: eventValues[3],
+              amount: eventValues[4] ? parseFloat(eventValues[4]) / decimal : 0,
+              time: eventValues[5],
+            };
+            let found = await pandoraPoolManagerRepo.findOne(obj);
+            if (!found) {
+              await pandoraPoolManagerRepo.create(obj);
+              console.log("added PandoraPoolManager", obj);
+            }
+          } else if (event_name == "UpdateTreasuryPoolAmount") {
+            obj = {
+              blockNumber: to_scan,
+              contract_address: eventValues[0],
+              caller: eventValues[1],
+              from: eventValues[2],
+              to: eventValues[3],
+              amount: eventValues[4] ? parseFloat(eventValues[4]) / decimal : 0,
+              time: eventValues[5],
+            };
+            let found = await treasuryPoolManagerRepo.findOne(obj);
+            if (!found) {
+              await treasuryPoolManagerRepo.create(obj);
+              console.log("added TreasuryPoolManager", obj);
+            }
+          } else if (event_name == "UpdateRewardPoolAmount") {
+            obj = {
+              blockNumber: to_scan,
+              contract_address: eventValues[0],
+              caller: eventValues[1],
+              from: eventValues[2],
+              to: eventValues[3],
+              amount: eventValues[4] ? parseFloat(eventValues[4]) / decimal : 0,
+              time: eventValues[5],
+            };
+            let found = await rewardPoolManagerRepo.findOne(obj);
+            if (!found) {
+              await rewardPoolManagerRepo.create(obj);
+              console.log("added RewardPoolManager", obj);
+            }
+          } else if (event_name == "UpdatePlatformFeeAmount") {
+            obj = {
+              blockNumber: to_scan,
+              contract_address: eventValues[0],
+              caller: eventValues[1],
+              from: eventValues[2],
+              to: eventValues[3],
+              amount: eventValues[4] ? parseFloat(eventValues[4]) / decimal : 0,
+              time: eventValues[5],
+            };
+            let found = await platformFeeManager.findOne(obj);
+            if (!found) {
+              await platformFeeManager.create(obj);
+              console.log("added PlatformFeeManager", obj);
             }
           }
           console.log(to_scan, contract_address, event_name, eventValues);
