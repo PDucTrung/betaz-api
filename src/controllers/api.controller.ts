@@ -169,15 +169,10 @@ export class ApiController {
                 // @ts-ignore
                 return this.response.send({status: STATUS.FAILED, message: MESSAGE.NO_INPUT});
             }
-            let email = req?.email;
             let limit = req?.limit;
             let offset = req?.offset;
             if (!limit) limit = 15;
             if (!offset) offset = 0;
-            if (!email) {
-                // @ts-ignore
-                return this.response.send({status: STATUS.FAILED, message: MESSAGE.NO_INPUT});
-            }
 
             let data = await this.emailSubscribeEventSchemaRepository.find();
 

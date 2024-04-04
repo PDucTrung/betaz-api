@@ -47,7 +47,7 @@ export type EmailSubscribeType = {
 
 const ReqEmailSubscribeSchema: SchemaObject = {
     type: 'object',
-    required: ['email'],
+    required: [],
     properties: {
         email: {
             type: 'string',
