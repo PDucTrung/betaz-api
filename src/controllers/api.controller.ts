@@ -1,31 +1,47 @@
+import * as dotenv from 'dotenv';
 import {
-    ResponseBody,
-    ScannedBlocksType,
+    EmailSubscribeType,
+    ReqEmailSubscribeBody,
     ReqScannedBlocksBody,
-
+    ResponseBody,
+    ScannedBlocksType
 } from "../utils/Message";
-import { MESSAGE, STATUS } from "../utils/constant";
+import {MESSAGE, STATUS} from "../utils/constant";
+dotenv.config();
 
 import {
-    post,
-    get,
-    RestBindings,
     Request,
     Response,
-    oas, requestBody, param, response, getModelSchemaRef,
+    RestBindings,
+    get,
+    param,
+    post,
+    requestBody
 } from '@loopback/rest';
 
 import {
     ScannedBlocksSchemaRepository,
+    claimEventSchemaRepository,
+    corePoolManagerEventSchemaRepository,
+    emailSubscribeEventSchemaRepository,
+    historyStakingEventSchemaRepository,
+    loseEventSchemaRepository,
+    pandoraPoolManagerEventSchemaRepository,
+    platformFeeManagerEventSchemaRepository,
+    rewardPoolManagerEventSchemaRepository,
+    stakingManagerEventSchemaRepository,
+    stakingPoolManagerEventSchemaRepository,
+    treasuryPoolManagerEventSchemaRepository,
+    whitelistManagerEventSchemaRepository,
+    winEventSchemaRepository
 } from "../repositories";
 
+import {inject} from "@loopback/core";
 import {
-    Count,
-    CountSchema,
-    Filter, FilterExcludingWhere, PredicateComparison,
-    repository, Where
+    repository
 } from '@loopback/repository';
-import { inject } from "@loopback/core";
+
+import nodemailer from "nodemailer";
 
 export class ApiController {
     constructor(
@@ -33,42 +49,38 @@ export class ApiController {
         @inject(RestBindings.Http.RESPONSE) private response: Response,
         @repository(ScannedBlocksSchemaRepository)
         public scannedBlocksSchemaRepository: ScannedBlocksSchemaRepository,
+        @repository(loseEventSchemaRepository)
+        public loseEventSchemaRepository: loseEventSchemaRepository,
+        @repository(winEventSchemaRepository)
+        public winEventSchemaRepository: winEventSchemaRepository,
+        @repository(corePoolManagerEventSchemaRepository)
+        public corePoolManagerEventSchemaRepository: corePoolManagerEventSchemaRepository,
+        @repository(stakingPoolManagerEventSchemaRepository)
+        public stakingPoolManagerEventSchemaRepository: stakingPoolManagerEventSchemaRepository,
+        @repository(pandoraPoolManagerEventSchemaRepository)
+        public pandoraPoolManagerEventSchemaRepository: pandoraPoolManagerEventSchemaRepository,
+        @repository(treasuryPoolManagerEventSchemaRepository)
+        public treasuryPoolManagerEventSchemaRepository: treasuryPoolManagerEventSchemaRepository,
+        @repository(rewardPoolManagerEventSchemaRepository)
+        public rewardPoolManagerEventSchemaRepository: rewardPoolManagerEventSchemaRepository,
+        @repository(platformFeeManagerEventSchemaRepository)
+        public platformFeeManagerEventSchemaRepository: platformFeeManagerEventSchemaRepository,
+        @repository(platformFeeManagerEventSchemaRepository)
+        public emailSubscribeEventSchemaRepository: emailSubscribeEventSchemaRepository,
+        @repository(emailSubscribeEventSchemaRepository)
+        public historyStakingEventSchemaRepository: historyStakingEventSchemaRepository,
+        @repository(historyStakingEventSchemaRepository)
+        public claimEventSchemaRepository: claimEventSchemaRepository,
+        @repository(claimEventSchemaRepository)
+        public stakingManagerEventSchemaRepository: stakingManagerEventSchemaRepository,
+        @repository(whitelistManagerEventSchemaRepository)
+        public whitelistManagerEventSchemaRepository: whitelistManagerEventSchemaRepository,
+
     ) {
     }
 
-    @post('/newScanned')
-    async newScanned(
-        @requestBody(ReqScannedBlocksBody) req: ScannedBlocksType
-    ): Promise<ResponseBody | Response> {
-        if (!req) return {
-            status: STATUS.FAILED,
-            message: MESSAGE.NO_INPUT
-        };
-        const lastScanned = req?.lastScanned;
-        const blockNumber = req?.blockNumber;
-        if (!lastScanned || !blockNumber) {
-            return {
-                status: STATUS.FAILED,
-                message: MESSAGE.INVALID_INPUT
-            }
-        }
-
-        await this.scannedBlocksSchemaRepository.create({
-            lastScanned: lastScanned,
-            blockNumber: blockNumber,
-            createdTime: new Date(),
-            updatedTime: new Date()
-        });
-
-        return {
-            status: STATUS.OK,
-            message: MESSAGE.SUCCESS,
-            data: req
-        }
-    }
-
-    @get('/getListScanned')
-    async getListScanned(
+    @get('/getBlockScanned')
+    async getBlockScanned(
         @param.query.boolean('lastScanned') lastScanned?: boolean,
     ): Promise<ResponseBody | Response> {
         try {
@@ -100,4 +112,202 @@ export class ApiController {
             });
         }
     }
+
+    @get('/statistic')
+    async statistic(): Promise<ResponseBody | Response> {
+        try {
+            const [winData, loseData] = await Promise.all([
+                this.winEventSchemaRepository.find(),
+                this.loseEventSchemaRepository.find()
+            ]);
+            const result = [...winData, ...loseData];
+
+            // Calculate unique players
+            const uniquePlayers = new Set(result.map(record => record.player));
+            const totalPlayers = uniquePlayers.size;
+
+            // Calculate total bet amount, win amount, and reward amount
+            const totalBetAmount = result.reduce((total, record) => total + (record.betAmount ?? 0), 0);
+            const totalWinAmount = winData.reduce((total, record) => total + (record.winAmount ?? 0), 0);
+            const totalRewardAmount = result.reduce((total, record) => total + (record.rewardAmount ?? 0), 0);
+
+            // Calculate win and lose rates
+            const winRate = (winData.length / result.length) * 100;
+            const loseRate = 100 - winRate;
+
+            const statistics = {
+                totalPlayers,
+                totalBetAmount,
+                totalRewardAmount,
+                totalWinAmount,
+                winRate,
+                loseRate,
+            };
+
+            // Send success response
+            return this.response.send({
+                status: STATUS.OK,
+                ret: statistics,
+                message: MESSAGE.SUCCESS,
+                data: []
+            });
+        } catch (e) {
+            console.log(`ERROR: ${e.message}`);
+            // Send error response
+            return this.response.send({
+                status: STATUS.FAILED,
+                message: e.message
+            });
+        }
+
+    }
+
+    @post('/getSubcribeEmail')
+    async getSubcribeEmail(
+        @requestBody(ReqEmailSubscribeBody) req: EmailSubscribeType
+    ): Promise<ResponseBody | Response> {
+        try {
+            if (!req) {
+                // @ts-ignore
+                return this.response.send({status: STATUS.FAILED, message: MESSAGE.NO_INPUT});
+            }
+            let email = req?.email;
+            let limit = req?.limit;
+            let offset = req?.offset;
+            if (!limit) limit = 15;
+            if (!offset) offset = 0;
+            if (!email) {
+                // @ts-ignore
+                return this.response.send({status: STATUS.FAILED, message: MESSAGE.NO_INPUT});
+            }
+
+            let data = await this.emailSubscribeEventSchemaRepository.find();
+
+            let total = data.length;
+
+            // pagination
+            data = data.slice(offset, offset + limit);
+
+            // format result
+            const dataTable = data.map((data) => ({
+                email: data.email,
+                subcribeAt: data.createdTime,
+            }));
+
+            // @ts-ignore
+            return this.response.send({
+                status: STATUS.OK,
+                message: MESSAGE.SUCCESS,
+                ret: dataTable,
+                total: total
+            });
+        } catch (e) {
+            console.log(`ERROR: ${e.message}`);
+            // @ts-ignore
+            return this.response.send({
+                status: STATUS.FAILED,
+                message: e.message
+            });
+        }
+    }
+
+    @post('/getEmailExist')
+    async getEmailExist(
+        @requestBody(ReqEmailSubscribeBody) req: EmailSubscribeType
+    ): Promise<ResponseBody | Response> {
+        try {
+            if (!req) {
+                // @ts-ignore
+                return this.response.send({status: STATUS.FAILED, message: MESSAGE.NO_INPUT});
+            }
+            let email = req?.email;
+            if (!email) {
+                // @ts-ignore
+                return this.response.send({status: STATUS.FAILED, message: MESSAGE.NO_INPUT});
+            }
+            const existingEmail = await this.emailSubscribeEventSchemaRepository.findOne({
+                where: {email: email}
+            });
+
+            // @ts-ignore
+            return this.response.send({
+                status: STATUS.OK,
+                message: MESSAGE.SUCCESS,
+                ret: existingEmail?.email,
+            });
+        } catch (e) {
+            console.log(`ERROR: ${e.message}`);
+            // @ts-ignore
+            return this.response.send({
+                status: STATUS.FAILED,
+                message: e.message
+            });
+        }
+    }
+
+    @post('/sendEmail')
+    async sendEmail(
+        @requestBody(ReqEmailSubscribeBody) req: EmailSubscribeType
+    ): Promise<ResponseBody | Response> {
+        try {
+            if (!req) {
+                throw new Error(MESSAGE.NO_INPUT);
+            }
+            const {email, subject, text} = req;
+            if (!email || !subject || !text) {
+                throw new Error(MESSAGE.NO_INPUT);
+            }
+
+            const transporter = nodemailer.createTransport({
+                service: "gmail",
+                auth: {
+                    user: process.env.ADMIN_EMAIL_USER,
+                    pass: process.env.ADMIN_EMAIL_PASS,
+                },
+            });
+
+            const mailOptions = {
+                from: process.env.ADMIN_EMAIL_USER,
+                to: email,
+                subject: subject,
+                text: text,
+            };
+
+            const existingEmail = await this.emailSubscribeEventSchemaRepository.findOne({
+                where: {email: email}
+            });
+            if (!existingEmail) {
+                await this.emailSubscribeEventSchemaRepository.create({email});
+            }
+
+            return new Promise((resolve, reject) => {
+                transporter.sendMail(mailOptions, (error: any, info: any) => {
+                    if (error) {
+                        reject(new Error(error.message));
+                        return this.response.send({
+                            status: STATUS.FAILED,
+                            message: error.message
+                        });
+                    } else {
+                        console.log("Email sent: " + info.response);
+                        resolve({
+                            status: STATUS.OK,
+                            message: MESSAGE.SUCCESS,
+                        });
+                        return this.response.send({
+                            status: STATUS.OK,
+                            message: MESSAGE.SUCCESS,
+                            ret: existingEmail?.email,
+                        });
+                    }
+                });
+            });
+        } catch (e) {
+            return this.response.send({
+                status: STATUS.FAILED,
+                message: e.message
+            });
+        }
+    }
+
 }

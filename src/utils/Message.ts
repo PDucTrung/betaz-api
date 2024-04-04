@@ -8,9 +8,10 @@ export type ResponseBody = {
     data?: object,
 }
 
+// scan block
 export type ScannedBlocksType = {
-    lastScanned: boolean,
-    blockNumber: number
+    lastScanned?: boolean,
+    blockNumber?: number
 };
 
 const ReqScannedBlocksSchema: SchemaObject = {
@@ -33,3 +34,33 @@ export const ReqScannedBlocksBody = {
         'application/json': {schema: ReqScannedBlocksSchema},
     },
 };
+
+// email
+export type EmailSubscribeType = {
+    email?: string,
+    limit?: number,
+    offset?: number,
+    sort?: number,
+    subject?: string,
+    text?: string,
+};
+
+const ReqEmailSubscribeSchema: SchemaObject = {
+    type: 'object',
+    required: ['lastScanned', 'number'],
+    properties: {
+        email: {
+            type: 'string',
+        },
+    },
+};
+export const ReqEmailSubscribeBody = {
+    description: 'Scanned block input',
+    required: true,
+    content: {
+        'application/x-www-form-urlencoded': {schema: ReqEmailSubscribeSchema},
+        'application/json': {schema: ReqEmailSubscribeSchema},
+    },
+};
+
+
