@@ -16,7 +16,7 @@ export type ScannedBlocksType = {
 
 const ReqScannedBlocksSchema: SchemaObject = {
     type: 'object',
-    required: ['lastScanned', 'number'],
+    required: [],
     properties: {
         lastScanned: {
             type: 'boolean',
@@ -47,7 +47,7 @@ export type EmailSubscribeType = {
 
 const ReqEmailSubscribeSchema: SchemaObject = {
     type: 'object',
-    required: ['lastScanned', 'number'],
+    required: ['email'],
     properties: {
         email: {
             type: 'string',

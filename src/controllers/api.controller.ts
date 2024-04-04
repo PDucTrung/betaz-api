@@ -2,9 +2,7 @@ import * as dotenv from 'dotenv';
 import {
     EmailSubscribeType,
     ReqEmailSubscribeBody,
-    ReqScannedBlocksBody,
-    ResponseBody,
-    ScannedBlocksType
+    ResponseBody
 } from "../utils/Message";
 import {MESSAGE, STATUS} from "../utils/constant";
 dotenv.config();
@@ -65,7 +63,7 @@ export class ApiController {
         public rewardPoolManagerEventSchemaRepository: rewardPoolManagerEventSchemaRepository,
         @repository(platformFeeManagerEventSchemaRepository)
         public platformFeeManagerEventSchemaRepository: platformFeeManagerEventSchemaRepository,
-        @repository(platformFeeManagerEventSchemaRepository)
+        @repository(emailSubscribeEventSchemaRepository)
         public emailSubscribeEventSchemaRepository: emailSubscribeEventSchemaRepository,
         @repository(emailSubscribeEventSchemaRepository)
         public historyStakingEventSchemaRepository: historyStakingEventSchemaRepository,
@@ -251,11 +249,15 @@ export class ApiController {
     ): Promise<ResponseBody | Response> {
         try {
             if (!req) {
-                throw new Error(MESSAGE.NO_INPUT);
+                // @ts-ignore
+                return this.response.send({status: STATUS.FAILED, message: MESSAGE.NO_INPUT});
             }
-            const {email, subject, text} = req;
-            if (!email || !subject || !text) {
-                throw new Error(MESSAGE.NO_INPUT);
+            let email = req?.email;
+            let subject = req?.subject;
+            let text = req?.text;
+            if (!email) {
+                // @ts-ignore
+                return this.response.send({status: STATUS.FAILED, message: MESSAGE.NO_INPUT});
             }
 
             const transporter = nodemailer.createTransport({
@@ -278,30 +280,31 @@ export class ApiController {
             });
             if (!existingEmail) {
                 await this.emailSubscribeEventSchemaRepository.create({email});
-            }
 
-            return new Promise((resolve, reject) => {
                 transporter.sendMail(mailOptions, (error: any, info: any) => {
                     if (error) {
-                        reject(new Error(error.message));
                         return this.response.send({
                             status: STATUS.FAILED,
                             message: error.message
                         });
                     } else {
                         console.log("Email sent: " + info.response);
-                        resolve({
-                            status: STATUS.OK,
-                            message: MESSAGE.SUCCESS,
-                        });
-                        return this.response.send({
-                            status: STATUS.OK,
-                            message: MESSAGE.SUCCESS,
-                            ret: existingEmail?.email,
-                        });
                     }
                 });
+            } else {
+                return this.response.send({
+                    status: STATUS.FAILED,
+                    message: MESSAGE.INVALID_INPUT
+                });
+            }
+
+
+            return this.response.send({
+                status: STATUS.OK,
+                message: MESSAGE.SUCCESS,
+                ret: email,
             });
+
         } catch (e) {
             return this.response.send({
                 status: STATUS.FAILED,
