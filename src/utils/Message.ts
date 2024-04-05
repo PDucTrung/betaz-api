@@ -63,4 +63,52 @@ export const ReqEmailSubscribeBody = {
     },
 };
 
+// bet event
+export type betEventType = {
+    player?: string,
+    limit?: number,
+    offset?: number,
+    sort?: number,
+};
 
+const ReqBetEventSchema: SchemaObject = {
+    type: 'object',
+    required: [],
+    properties: {
+        blockNumber: {
+            type: 'number',
+        },
+        player: {
+            type: 'string',
+        },
+        isOver: {
+            type: 'boolean',
+        },
+        randomNumber: {
+            type: 'number',
+        },
+        betNumber: {
+            type: 'number',
+        },
+        betAmount: {
+            type: 'number',
+        },
+        winAmount: {
+            type: 'number',
+        },
+        rewardAmount: {
+            type: 'number',
+        },
+        oracleRound: {
+            type: 'number',
+        },
+    },
+};
+export const ReqBetEventBody = {
+    description: 'Scanned block input',
+    required: true,
+    content: {
+        'application/x-www-form-urlencoded': {schema: ReqBetEventSchema},
+        'application/json': {schema: ReqBetEventSchema},
+    },
+};

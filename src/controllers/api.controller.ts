@@ -1,8 +1,10 @@
 import * as dotenv from 'dotenv';
 import {
     EmailSubscribeType,
+    ReqBetEventBody,
     ReqEmailSubscribeBody,
-    ResponseBody
+    ResponseBody,
+    betEventType
 } from "../utils/Message";
 import {MESSAGE, STATUS} from "../utils/constant";
 dotenv.config();
@@ -274,7 +276,7 @@ export class ApiController {
                 where: {email: email}
             });
             if (!existingEmail) {
-                await this.emailSubscribeEventSchemaRepository.create({email});
+                await this.emailSubscribeEventSchemaRepository.create({email, createdTime: new Date()});
 
                 transporter.sendMail(mailOptions, (error: any, info: any) => {
                     if (error) {
@@ -301,6 +303,182 @@ export class ApiController {
             });
 
         } catch (e) {
+            return this.response.send({
+                status: STATUS.FAILED,
+                message: e.message
+            });
+        }
+    }
+
+    @post('/getEventsByPlayer')
+    async getEventsByPlayer(
+        @requestBody(ReqBetEventBody) req: betEventType
+    ): Promise<ResponseBody | Response> {
+        try {
+            if (!req) {
+                // @ts-ignore
+                return this.response.send({status: STATUS.FAILED, message: MESSAGE.NO_INPUT});
+            }
+            let player = req?.player;
+            let limit = req?.limit || 15;
+            let offset = req?.offset || 0;
+            let sort = req?.sort || -1;
+            if (!player) {
+                // @ts-ignore
+                return this.response.send({status: STATUS.FAILED, message: MESSAGE.INVALID_ADDRESS});
+            }
+
+            let winData = await this.winEventSchemaRepository.find({where: {player: player}});
+            let loseData = await this.loseEventSchemaRepository.find({where: {player: player}});
+
+            let result = winData.concat(loseData);
+            let total = result.length;
+
+            // sort
+            result.sort(
+                (a: any, b: any) => (a.blockNumber - b.blockNumber) * sort
+            );
+
+            // pagination
+            result = result.slice(offset, offset + limit);
+
+            // format result
+            const dataTable = result.map((result: any) => ({
+                player: result.player,
+                blockNumber: result.blockNumber,
+                betAmount: result.betAmount,
+                type: result.isOver,
+                prediction: result.betNumber,
+                randomNumber: result.randomNumber,
+                wonAmount: result?.winAmount - result?.betAmount,
+                rewardAmount: result.rewardAmount,
+                oracleRound: result.oracleRound,
+            }));
+
+            // @ts-ignore
+            return this.response.send({
+                status: STATUS.OK,
+                message: MESSAGE.SUCCESS,
+                ret: dataTable,
+                total: total
+            });
+        } catch (e) {
+            console.log(`ERROR: ${e.message}`);
+            // @ts-ignore
+            return this.response.send({
+                status: STATUS.FAILED,
+                message: e.message
+            });
+        }
+    }
+
+    @post('/getEvents')
+    async getEvents(
+        @requestBody(ReqBetEventBody) req: betEventType
+    ): Promise<ResponseBody | Response> {
+        try {
+            if (!req) {
+                // @ts-ignore
+                return this.response.send({status: STATUS.FAILED, message: MESSAGE.NO_INPUT});
+            }
+            let limit = req?.limit || 15;
+            let offset = req?.offset || 0;
+            let sort = req?.sort || -1;
+
+            let winData = await this.winEventSchemaRepository.find();
+            let loseData = await this.loseEventSchemaRepository.find();
+
+            let result = winData.concat(loseData);
+            let total = result.length;
+
+            // sort
+            result.sort(
+                (a: any, b: any) => (a.blockNumber - b.blockNumber) * sort
+            );
+
+            // pagination
+            result = result.slice(offset, offset + limit);
+
+            // format result
+            const dataTable = result.map((result: any) => ({
+                player: result.player,
+                blockNumber: result.blockNumber,
+                betAmount: result.betAmount,
+                type: result.isOver,
+                prediction: result.betNumber,
+                randomNumber: result.randomNumber,
+                wonAmount: result?.winAmount - result?.betAmount,
+                rewardAmount: result.rewardAmount,
+                oracleRound: result.oracleRound,
+            }));
+
+            // @ts-ignore
+            return this.response.send({
+                status: STATUS.OK,
+                message: MESSAGE.SUCCESS,
+                ret: dataTable,
+                total: total
+            });
+        } catch (e) {
+            console.log(`ERROR: ${e.message}`);
+            // @ts-ignore
+            return this.response.send({
+                status: STATUS.FAILED,
+                message: e.message
+            });
+        }
+    }
+
+    @post('/getRareWins')
+    async getRareWins(
+        @requestBody(ReqBetEventBody) req: betEventType
+    ): Promise<ResponseBody | Response> {
+        try {
+            if (!req) {
+                // @ts-ignore
+                return this.response.send({status: STATUS.FAILED, message: MESSAGE.NO_INPUT});
+            }
+            let limit = req?.limit || 15;
+            let offset = req?.offset || 0;
+            let sort = req?.sort || -1;
+
+            let winData = await this.winEventSchemaRepository.find();
+            winData.filter((player: any) => +player.winAmount > +player.betAmount * 10);
+
+            let result = winData;
+            let total = result.length;
+
+            // sort
+            result.sort(
+                (a: any, b: any) => (a.blockNumber - b.blockNumber) * sort
+            );
+
+            // pagination
+            result = result.slice(offset, offset + limit);
+
+            // format result
+            const dataTable = result.map((result: any) => ({
+                player: result.player,
+                blockNumber: result.blockNumber,
+                betAmount: result.betAmount,
+                type: result.isOver,
+                prediction: result.betNumber,
+                randomNumber: result.randomNumber,
+                wonAmount: result?.winAmount - result?.betAmount,
+                rewardAmount: result.rewardAmount,
+                oracleRound: result.oracleRound,
+            }));
+
+            // @ts-ignore
+            return this.response.send({
+                status: STATUS.OK,
+                message: MESSAGE.SUCCESS,
+                ret: dataTable,
+                total: total
+            });
+        } catch (e) {
+            console.log(`ERROR: ${e.message}`);
+            // @ts-ignore
             return this.response.send({
                 status: STATUS.FAILED,
                 message: e.message
